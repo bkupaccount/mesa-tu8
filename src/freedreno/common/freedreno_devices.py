@@ -1601,6 +1601,12 @@ a8xx_825 = GPUProps(
         gmem_per_ccu_color_cache_size = 16 * 1024,
         gmem_ccu_depth_cache_fraction = CCUColorCacheFraction.FULL.value,
         gmem_per_ccu_depth_cache_size = 127 * 1024,
+        # Work around texture corruption caused by bad UBWC swizzle config in
+        # some emulator stacks.
+        disable_ubwc = True,
+        # Some emulator resolution-scale factors still hit swizzled/corrupt
+        # output through bin-scaling paths, so keep this conservative on 825.
+        has_hw_bin_scaling = False,
         disable_gmem = True,
 )
 
@@ -1672,6 +1678,7 @@ add_gpus([
 # gen8_6_0
 add_gpus([
         GPUId(chip_id=0x44030000, name="FD825"),
+        GPUId(chip_id=0xffff44030000, name="FD825"),
     ], A6xxGPUInfo(
         CHIP.A8XX,
         [a7xx_base, a7xx_gen3, a8xx_base, a8xx_825],
@@ -1827,4 +1834,3 @@ fd_dev_info_apply_dbg_options(struct fd_dev_info *info)
 """
 
 print(Template(template).render(s=s, unique_props=GPUProps.unique_props))
-
