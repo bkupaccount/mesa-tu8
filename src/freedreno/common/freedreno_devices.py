@@ -1611,6 +1611,11 @@ a8xx_825 = GPUProps(
         # checkerboard-like corruption seen on some emulator stacks.
         has_attachment_shading_rate = False,
         has_primitive_shading_rate = False,
+        # Keep LRZ conservative as some emulator stacks still show
+        # checkerboard artifacts at native scale.
+        enable_lrz_fast_clear = False,
+        has_lrz_dir_tracking = False,
+        has_lrz_feedback = False,
         disable_gmem = True,
 )
 
