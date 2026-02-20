@@ -505,7 +505,7 @@ Not a guide for how to do it but mostly an enumeration of methods.
 
 Useful ``TU_DEBUG`` (for Turnip) options to narrow down the hang cause:
 
-``sysmem``, ``gmem``, ``nobin``, ``forcebin``, ``noubwc``, ``nolrz``, ``flushall``, ``syncdraw``, ``rast_order``
+``sysmem``, ``gmem``, ``nobin``, ``forcebin``, ``noubwc``, ``nolrz``, ``flushall``, ``syncdraw``, ``rast_order``, ``force_linear_a8xx``
 
 Useful ``FD_MESA_DEBUG`` (for Freedreno) options:
 
