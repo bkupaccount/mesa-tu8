@@ -1616,6 +1616,9 @@ a8xx_825 = GPUProps(
         enable_lrz_fast_clear = False,
         has_lrz_dir_tracking = False,
         has_lrz_feedback = False,
+        # Avoid emulator-specific compressed-texture conversion glitches
+        # (checkerboard/swizzle artifacts in BCn/ASTC paths).
+        disable_texture_compression = True,
         disable_gmem = True,
 )
 
