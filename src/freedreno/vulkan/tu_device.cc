@@ -406,10 +406,12 @@ tu_get_features(struct tu_physical_device *pdevice,
    features->alphaToOne = true;
    features->multiViewport = tu_has_multiview(pdevice);
    features->samplerAnisotropy = true;
-   features->textureCompressionETC2 = true;
-   features->textureCompressionASTC_LDR = true;
+   features->textureCompressionETC2 = !pdevice->info->props.disable_texture_compression;
+   features->textureCompressionASTC_LDR = !pdevice->info->props.disable_texture_compression;
    /* no BC6H & BC7 support on A702 */
-   features->textureCompressionBC = !pdevice->info->props.is_a702;
+   features->textureCompressionBC =
+      !pdevice->info->props.is_a702 &&
+      !pdevice->info->props.disable_texture_compression;
    features->occlusionQueryPrecise = true;
    features->pipelineStatisticsQuery = true;
    features->vertexPipelineStoresAndAtomics = true;
