@@ -327,6 +327,9 @@ ubwc_possible(struct tu_device *device,
    if (info->props.is_a702)
       return false;
 
+   if (info->props.disable_ubwc)
+      return false;
+
    /* UBWC isn't possible with sparse residency, because unbound blocks may
     * have leftover fast-clear data and therefore may show up as non-zero.
     * TODO: Enable UBWC if nonResidentStrict isn't enabled.
@@ -520,6 +523,17 @@ tu_image_update_layout(struct tu_device *device, struct tu_image *image,
    if (has_r8g8 && tile_mode == TILE6_3 &&
        (image->vk.usage & VK_IMAGE_USAGE_HOST_TRANSFER_BIT_EXT)) {
       tile_mode = TILE6_LINEAR;
+   }
+
+   /* Some devices still show checkerboard/swizzle artifacts with tiled
+    * compressed images in emulator workloads. Keep compressed textures linear
+    * there as a conservative workaround.
+    */
+   if (device->physical_device->info->props.disable_tiled_compressed &&
+       tile_mode == TILE6_3 &&
+       vk_format_is_compressed(image->vk.format)) {
+      tile_mode = TILE6_LINEAR;
+      image->ubwc_enabled = false;
    }
 
    /* We cannot support sparse residency with linear images, it should've been
@@ -1618,4 +1632,3 @@ tu_bind_sparse_image(struct tu_device *device, void *submit,
                          prev_bo_offset, bind_range);
    }
 }
-
