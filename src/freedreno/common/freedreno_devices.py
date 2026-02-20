@@ -1607,6 +1607,10 @@ a8xx_825 = GPUProps(
         # Some emulator resolution-scale factors still hit swizzled/corrupt
         # output through bin-scaling paths, so keep this conservative on 825.
         has_hw_bin_scaling = False,
+        # Disable fragment shading-rate paths as an additional workaround for
+        # checkerboard-like corruption seen on some emulator stacks.
+        has_attachment_shading_rate = False,
+        has_primitive_shading_rate = False,
         disable_gmem = True,
 )
 
