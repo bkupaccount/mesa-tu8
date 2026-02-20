@@ -699,6 +699,19 @@ tu_image_init(struct tu_device *device, struct tu_image *image,
 {
    image->ubwc_enabled = true;
 
+   /* TU_DEBUG=force_linear_a8xx diagnostic override for A8XX
+    * tiling/surface layout bring-up.
+    *
+    * When investigating texture swizzle/tiling corruption (for example,
+    * checkerboard artifacts), forcing linear tiling allows quickly
+    * differentiating descriptor/format bugs from tiled address decode bugs.
+    */
+   if (device->physical_device->info->chip >= A8XX &&
+       TU_DEBUG_START(FORCE_LINEAR_A8XX)) {
+      image->force_linear_tile = true;
+      image->ubwc_enabled = false;
+   }
+
    /* use linear tiling if requested */
    if (pCreateInfo->tiling == VK_IMAGE_TILING_LINEAR) {
       image->force_linear_tile = true;
