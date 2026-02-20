@@ -525,6 +525,17 @@ tu_image_update_layout(struct tu_device *device, struct tu_image *image,
       tile_mode = TILE6_LINEAR;
    }
 
+   /* Some devices still show checkerboard/swizzle artifacts with tiled
+    * compressed images in emulator workloads. Keep compressed textures linear
+    * there as a conservative workaround.
+    */
+   if (device->physical_device->info->props.disable_tiled_compressed &&
+       tile_mode == TILE6_3 &&
+       vk_format_is_compressed(image->vk.format)) {
+      tile_mode = TILE6_LINEAR;
+      image->ubwc_enabled = false;
+   }
+
    /* We cannot support sparse residency with linear images, it should've been
     * rejected.
     */

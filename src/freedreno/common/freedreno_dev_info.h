@@ -294,10 +294,10 @@ struct fd_dev_info {
        */
       bool disable_ubwc;
 
-      /* Temporary workaround for emulator stacks with broken compressed
-       * texture conversion paths.
+      /* Temporary workaround for devices with broken tiled layout handling
+       * on compressed textures.
        */
-      bool disable_texture_compression;
+      bool disable_tiled_compressed;
 
       /* Whether 4 nops are needed after the second pred[tf] of a
        * pred[tf]/pred[ft] pair to work around a hardware issue.
