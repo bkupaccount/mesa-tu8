@@ -144,7 +144,7 @@ tu_physical_device_get_format_properties(
                                                      TILE6_LINEAR, false);
    bool is_npot = !util_is_power_of_two_or_zero(desc->block.bits);
 
-   if (physical_device->info->props.disable_texture_compression &&
+   if (physical_device->info->props.disable_tiled_compressed &&
        util_format_is_compressed(format)) {
       supported_tex = false;
       supported_color = false;
