@@ -1601,6 +1601,24 @@ a8xx_825 = GPUProps(
         gmem_per_ccu_color_cache_size = 16 * 1024,
         gmem_ccu_depth_cache_fraction = CCUColorCacheFraction.FULL.value,
         gmem_per_ccu_depth_cache_size = 127 * 1024,
+        # Work around texture corruption caused by bad UBWC swizzle config in
+        # some emulator stacks.
+        disable_ubwc = True,
+        # Some emulator resolution-scale factors still hit swizzled/corrupt
+        # output through bin-scaling paths, so keep this conservative on 825.
+        has_hw_bin_scaling = False,
+        # Disable fragment shading-rate paths as an additional workaround for
+        # checkerboard-like corruption seen on some emulator stacks.
+        has_attachment_shading_rate = False,
+        has_primitive_shading_rate = False,
+        # Keep LRZ conservative as some emulator stacks still show
+        # checkerboard artifacts at native scale.
+        enable_lrz_fast_clear = False,
+        has_lrz_dir_tracking = False,
+        has_lrz_feedback = False,
+        # Avoid emulator-specific compressed-texture conversion glitches
+        # (checkerboard/swizzle artifacts in BCn/ASTC paths).
+        disable_texture_compression = True,
         disable_gmem = True,
 )
 
@@ -1672,6 +1690,7 @@ add_gpus([
 # gen8_6_0
 add_gpus([
         GPUId(chip_id=0x44030000, name="FD825"),
+        GPUId(chip_id=0xffff44030000, name="FD825"),
     ], A6xxGPUInfo(
         CHIP.A8XX,
         [a7xx_base, a7xx_gen3, a8xx_base, a8xx_825],
@@ -1827,4 +1846,3 @@ fd_dev_info_apply_dbg_options(struct fd_dev_info *info)
 """
 
 print(Template(template).render(s=s, unique_props=GPUProps.unique_props))
-

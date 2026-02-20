@@ -75,6 +75,9 @@ bool
 tu6_mutable_format_list_ubwc_compatible(const struct fd_dev_info *info,
                                         const VkImageFormatListCreateInfo *fmt_list)
 {
+   if (info->props.disable_ubwc)
+      return false;
+
    if (!fmt_list || !fmt_list->viewFormatCount)
       return false;
 
@@ -140,6 +143,12 @@ tu_physical_device_get_format_properties(
    bool supported_tex = fd6_texture_format_supported(physical_device->info, format,
                                                      TILE6_LINEAR, false);
    bool is_npot = !util_is_power_of_two_or_zero(desc->block.bits);
+
+   if (physical_device->info->props.disable_texture_compression &&
+       util_format_is_compressed(format)) {
+      supported_tex = false;
+      supported_color = false;
+   }
 
    if (format == PIPE_FORMAT_NONE ||
        !(supported_vtx || supported_color || supported_tex)) {
@@ -394,8 +403,11 @@ tu_GetPhysicalDeviceFormatProperties2(
          }
       }
 
+      const bool ubwc_disabled = physical_device->info->props.disable_ubwc;
+
       /* note: ubwc_possible() argument values to be ignored except for format */
-      if (pFormatProperties->formatProperties.optimalTilingFeatures &&
+      if (!ubwc_disabled &&
+          pFormatProperties->formatProperties.optimalTilingFeatures &&
           tiling_possible(format) &&
           ubwc_possible(NULL, format, VK_IMAGE_TYPE_2D, 0, 0, 0,
                         physical_device->info, VK_SAMPLE_COUNT_1_BIT, 1,
@@ -425,8 +437,11 @@ tu_GetPhysicalDeviceFormatProperties2(
          }
       }
 
+      const bool ubwc_disabled = physical_device->info->props.disable_ubwc;
+
       /* note: ubwc_possible() argument values to be ignored except for format */
-      if (props3->optimalTilingFeatures &&
+      if (!ubwc_disabled &&
+          props3->optimalTilingFeatures &&
           tiling_possible(format) &&
           ubwc_possible(NULL, format, VK_IMAGE_TYPE_2D, 0, 0, 0,
                         physical_device->info, VK_SAMPLE_COUNT_1_BIT, 1,
@@ -494,6 +509,9 @@ tu_get_image_format_properties(
       switch (drm_info->drmFormatModifier) {
       case DRM_FORMAT_MOD_QCOM_COMPRESSED:
          /* falling back to linear/non-UBWC isn't possible with explicit modifier */
+
+         if (physical_device->info->props.disable_ubwc)
+            return VK_ERROR_FORMAT_NOT_SUPPORTED;
 
          /* formats which don't support tiling */
          if (!format_props.optimalTilingFeatures ||
@@ -878,12 +896,13 @@ tu_GetPhysicalDeviceImageFormatProperties2(
           */
          (fd6_color_swap(vk_format_to_pipe_format(base_info->format),
                                                   TILE6_LINEAR, false) == WZYX &&
-         !ubwc_possible(NULL, base_info->format, base_info->type,
+         (physical_device->info->props.disable_ubwc ||
+          !ubwc_possible(NULL, base_info->format, base_info->type,
                         base_info->flags,
                         (base_info->usage & ~VK_IMAGE_USAGE_HOST_TRANSFER_BIT_EXT),
                         (base_info->usage & ~VK_IMAGE_USAGE_HOST_TRANSFER_BIT_EXT),
                         physical_device->info, VK_SAMPLE_COUNT_1_BIT, 1,
-                        physical_device->info->props.has_z24uint_s8uint));
+                        physical_device->info->props.has_z24uint_s8uint)));
    }
 
    return VK_SUCCESS;

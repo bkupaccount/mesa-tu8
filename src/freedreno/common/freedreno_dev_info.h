@@ -289,6 +289,16 @@ struct fd_dev_info {
        */
       bool supports_linear_mipmap_threshold_in_blocks;
 
+      /* Temporary workaround for GPUs/emulators where UBWC address swizzling
+       * configuration is unreliable and can cause corrupted textures.
+       */
+      bool disable_ubwc;
+
+      /* Temporary workaround for emulator stacks with broken compressed
+       * texture conversion paths.
+       */
+      bool disable_texture_compression;
+
       /* Whether 4 nops are needed after the second pred[tf] of a
        * pred[tf]/pred[ft] pair to work around a hardware issue.
        */

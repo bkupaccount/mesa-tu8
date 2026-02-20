@@ -345,7 +345,9 @@ get_device_extensions(const struct tu_physical_device *device,
       .EXT_swapchain_maintenance1 = true,
 #endif
       .EXT_texel_buffer_alignment = true,
-      .EXT_texture_compression_astc_hdr = device->info->props.has_astc_hdr,
+      .EXT_texture_compression_astc_hdr =
+         device->info->props.has_astc_hdr &&
+         !device->info->props.disable_texture_compression,
       .EXT_tooling_info = true,
       .EXT_transform_feedback = true,
       .EXT_vertex_attribute_divisor = true,
@@ -405,10 +407,12 @@ tu_get_features(struct tu_physical_device *pdevice,
    features->alphaToOne = true;
    features->multiViewport = tu_has_multiview(pdevice);
    features->samplerAnisotropy = true;
-   features->textureCompressionETC2 = true;
-   features->textureCompressionASTC_LDR = true;
+   features->textureCompressionETC2 = !pdevice->info->props.disable_texture_compression;
+   features->textureCompressionASTC_LDR = !pdevice->info->props.disable_texture_compression;
    /* no BC6H & BC7 support on A702 */
-   features->textureCompressionBC = !pdevice->info->props.is_a702;
+   features->textureCompressionBC =
+      !pdevice->info->props.is_a702 &&
+      !pdevice->info->props.disable_texture_compression;
    features->occlusionQueryPrecise = true;
    features->pipelineStatisticsQuery = true;
    features->vertexPipelineStoresAndAtomics = true;
@@ -519,7 +523,9 @@ tu_get_features(struct tu_physical_device *pdevice,
    features->subgroupSizeControl                 = true;
    features->computeFullSubgroups                = true;
    features->synchronization2                    = true;
-   features->textureCompressionASTC_HDR          = pdevice->info->props.has_astc_hdr;
+   features->textureCompressionASTC_HDR =
+      pdevice->info->props.has_astc_hdr &&
+      !pdevice->info->props.disable_texture_compression;
    features->shaderZeroInitializeWorkgroupMemory = true;
    features->dynamicRendering                    = true;
    features->shaderIntegerDotProduct             = true;
