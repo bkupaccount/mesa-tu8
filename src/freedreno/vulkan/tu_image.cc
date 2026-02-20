@@ -536,6 +536,22 @@ tu_image_update_layout(struct tu_device *device, struct tu_image *image,
       image->ubwc_enabled = false;
    }
 
+   /* Emulator texture packs frequently include NPOT assets, and some A8xx
+    * stacks that already need disable_tiled_compressed still show checkerboard
+    * artifacts when those NPOT images use tiled layout. Keep sampled/storage
+    * NPOT images linear on those devices as a conservative correctness
+    * workaround.
+    */
+   if (device->physical_device->info->props.disable_tiled_compressed &&
+       tile_mode == TILE6_3 &&
+       (image->vk.usage & (VK_IMAGE_USAGE_SAMPLED_BIT |
+                           VK_IMAGE_USAGE_STORAGE_BIT)) &&
+       (!util_is_power_of_two_or_zero(image->vk.extent.width) ||
+        !util_is_power_of_two_or_zero(image->vk.extent.height))) {
+      tile_mode = TILE6_LINEAR;
+      image->ubwc_enabled = false;
+   }
+
    /* We cannot support sparse residency with linear images, it should've been
     * rejected.
     */
