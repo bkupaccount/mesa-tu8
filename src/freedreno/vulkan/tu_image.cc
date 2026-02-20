@@ -327,6 +327,9 @@ ubwc_possible(struct tu_device *device,
    if (info->props.is_a702)
       return false;
 
+   if (info->props.disable_ubwc)
+      return false;
+
    /* UBWC isn't possible with sparse residency, because unbound blocks may
     * have leftover fast-clear data and therefore may show up as non-zero.
     * TODO: Enable UBWC if nonResidentStrict isn't enabled.
@@ -1618,4 +1621,3 @@ tu_bind_sparse_image(struct tu_device *device, void *submit,
                          prev_bo_offset, bind_range);
    }
 }
-
