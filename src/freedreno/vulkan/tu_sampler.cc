@@ -81,6 +81,17 @@ tu_CreateSampler(VkDevice _device,
    unsigned aniso = pCreateInfo->anisotropyEnable ?
       util_last_bit(MIN2((uint32_t)pCreateInfo->maxAnisotropy >> 1, 8)) : 0;
    bool miplinear = (pCreateInfo->mipmapMode == VK_SAMPLER_MIPMAP_MODE_LINEAR);
+
+   if (CHIP >= A8XX) {
+      /*
+       * FIXME: mipmap/aniso sampling is currently unreliable on A8xx and can
+       * pick much blurrier LODs than requested. Until the descriptor encoding
+       * is fully validated for these chips, disable anisotropy and mipmapping
+       * to preserve texture sharpness.
+       */
+      aniso = 0;
+      miplinear = false;
+   }
    float min_lod = CLAMP(pCreateInfo->minLod, 0.0f, 4095.0f / 256.0f);
    float max_lod = CLAMP(pCreateInfo->maxLod, 0.0f, 4095.0f / 256.0f);
 
@@ -89,6 +100,7 @@ tu_CreateSampler(VkDevice _device,
 
    if (CHIP >= A8XX) {
       sampler->descriptor[0] =
+         A8XX_TEX_SAMP_0_MIPMAPING_DIS |
          COND(miplinear, A8XX_TEX_SAMP_0_MIPFILTER_LINEAR_NEAR) |
          A8XX_TEX_SAMP_0_XY_MAG(tu6_tex_filter(pCreateInfo->magFilter, aniso)) |
          A8XX_TEX_SAMP_0_XY_MIN(tu6_tex_filter(pCreateInfo->minFilter, aniso)) |
