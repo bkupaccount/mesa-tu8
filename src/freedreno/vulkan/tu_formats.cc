@@ -404,9 +404,14 @@ tu_GetPhysicalDeviceFormatProperties2(
       }
 
       const bool ubwc_disabled = physical_device->info->props.disable_ubwc;
+      /* A8XX scanout with UBWC modifiers is still unstable in mesa-tu8.
+       * Prefer linear modifiers for presentation until the display path is
+       * fully validated.
+       */
+      const bool disable_ubwc_modifiers = physical_device->info->chip >= A8XX;
 
       /* note: ubwc_possible() argument values to be ignored except for format */
-      if (!ubwc_disabled &&
+      if (!ubwc_disabled && !disable_ubwc_modifiers &&
           pFormatProperties->formatProperties.optimalTilingFeatures &&
           tiling_possible(format) &&
           ubwc_possible(NULL, format, VK_IMAGE_TYPE_2D, 0, 0, 0,
@@ -438,9 +443,10 @@ tu_GetPhysicalDeviceFormatProperties2(
       }
 
       const bool ubwc_disabled = physical_device->info->props.disable_ubwc;
+      const bool disable_ubwc_modifiers = physical_device->info->chip >= A8XX;
 
       /* note: ubwc_possible() argument values to be ignored except for format */
-      if (!ubwc_disabled &&
+      if (!ubwc_disabled && !disable_ubwc_modifiers &&
           props3->optimalTilingFeatures &&
           tiling_possible(format) &&
           ubwc_possible(NULL, format, VK_IMAGE_TYPE_2D, 0, 0, 0,
@@ -508,6 +514,9 @@ tu_get_image_format_properties(
 
       switch (drm_info->drmFormatModifier) {
       case DRM_FORMAT_MOD_QCOM_COMPRESSED:
+         if (physical_device->info->chip >= A8XX)
+            return VK_ERROR_FORMAT_NOT_SUPPORTED;
+
          /* falling back to linear/non-UBWC isn't possible with explicit modifier */
 
          if (physical_device->info->props.disable_ubwc)
