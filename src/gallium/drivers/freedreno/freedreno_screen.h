@@ -252,6 +252,12 @@ is_a6xx(struct fd_screen *screen)
    return screen->gen >= 6;
 }
 
+static inline bool
+is_a8xx(struct fd_screen *screen)
+{
+   return screen->gen == 8;
+}
+
 /* is it using the ir3 compiler (shader isa introduced with a3xx)? */
 static inline bool
 is_ir3(struct fd_screen *screen)

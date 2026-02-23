@@ -40,6 +40,15 @@ pool_base(struct tu_descriptor_pool *pool)
    return pool->host_bo ?: (uint8_t *) pool->bo->map;
 }
 
+static inline uint32_t
+tu_get_tex_const_dwords(const struct tu_device *device)
+{
+   /* Keep this centralized so A8xx descriptor sizing can diverge safely once
+    * the exact dword count is wired up.
+    */
+   return FDL6_TEX_CONST_DWORDS;
+}
+
 static uint32_t
 descriptor_size(struct tu_device *dev,
                 const VkDescriptorSetLayoutBinding *binding,
@@ -54,14 +63,14 @@ descriptor_size(struct tu_device *dev,
        * descriptors which are less than 16 dwords. However combined images
        * and samplers are actually two descriptors, so they have size 2.
        */
-      return FDL6_TEX_CONST_DWORDS * 4 * 2;
+      return tu_get_tex_const_dwords(dev) * 4 * 2;
    case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
    case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
       /* isam.v allows using a single 16-bit descriptor for both 16-bit and
        * 32-bit loads. If not available but 16-bit storage is still supported,
        * two separate descriptors are required.
        */
-      return FDL6_TEX_CONST_DWORDS * 4 * (1 +
+      return tu_get_tex_const_dwords(dev) * 4 * (1 +
          COND(dev->physical_device->info->props.storage_16bit &&
               !dev->physical_device->info->props.has_isam_v, 1) +
          COND(dev->physical_device->info->props.storage_8bit, 1));
@@ -69,7 +78,7 @@ descriptor_size(struct tu_device *dev,
       return binding->descriptorCount;
    case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
    default:
-      return FDL6_TEX_CONST_DWORDS * 4;
+      return tu_get_tex_const_dwords(dev) * 4;
    }
 }
 
@@ -253,7 +262,7 @@ tu_CreateDescriptorSetLayout(
       }
 
       uint32_t size =
-         ALIGN_POT(set_layout->binding[b].array_size * set_layout->binding[b].size, 4 * FDL6_TEX_CONST_DWORDS);
+         ALIGN_POT(set_layout->binding[b].array_size * set_layout->binding[b].size, 4 * tu_get_tex_const_dwords(device));
       if (vk_descriptor_type_is_dynamic(binding->descriptorType)) {
          dynamic_offset_size += size;
       } else {
@@ -367,7 +376,7 @@ tu_GetDescriptorSetLayoutSupport(
       } else {
          descriptor_sz = descriptor_size(device, binding, binding->descriptorType);
       }
-      uint64_t descriptor_alignment = 4 * FDL6_TEX_CONST_DWORDS;
+      uint64_t descriptor_alignment = 4 * tu_get_tex_const_dwords(device);
 
       if (size && !ALIGN_POT(size, descriptor_alignment)) {
          supported = false;
@@ -602,7 +611,7 @@ tu_descriptor_set_create(struct tu_device *device,
          &layout->binding[layout->binding_count - 1];
       if (binding->type == VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK) {
          layout_size = binding->offset +
-            align(variable_count, 4 * FDL6_TEX_CONST_DWORDS);
+            align(variable_count, 4 * tu_get_tex_const_dwords(device));
       } else {
          uint32_t stride = binding->size;
          layout_size = binding->offset + variable_count * stride;
@@ -647,7 +656,7 @@ tu_descriptor_set_create(struct tu_device *device,
 
          unsigned offset = layout->binding[i].offset / 4;
          if (layout->binding[i].type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
-            offset += FDL6_TEX_CONST_DWORDS;
+            offset += tu_get_tex_const_dwords(device);
 
          const struct tu_sampler *samplers =
             (const struct tu_sampler *)((const char *)layout +
@@ -705,13 +714,15 @@ tu_CreateDescriptorPool(VkDevice _device,
       vk_find_struct_const(pCreateInfo->pNext,
                            DESCRIPTOR_POOL_INLINE_UNIFORM_BLOCK_CREATE_INFO);
 
+   const uint32_t tex_const_dwords = tu_get_tex_const_dwords(device);
+
    if (inline_info) {
       /* We have to factor in the padding for each binding. The sizes are 4
-       * aligned but we have to align to 4 * FDL6_TEX_CONST_DWORDS bytes, and in
+       * aligned but we have to align to 4 * tex_const_dwords bytes, and in
        * the worst case each inline binding has a size of 4 bytes and we have
        * to pad each one out.
        */
-      bo_size += (4 * FDL6_TEX_CONST_DWORDS - 4) *
+      bo_size += (4 * tex_const_dwords - 4) *
          inline_info->maxInlineUniformBlockBindings;
    }
 
@@ -732,7 +743,7 @@ tu_CreateDescriptorPool(VkDevice _device,
                   pool_size->descriptorCount;
          } else {
             /* Allocate the maximum size possible. */
-            bo_size += 2 * FDL6_TEX_CONST_DWORDS * 4 *
+            bo_size += 2 * tu_get_tex_const_dwords(device) * 4 *
                   pool_size->descriptorCount;
          }
          break;
@@ -1001,7 +1012,7 @@ write_buffer_descriptor_addr(const struct tu_device *device,
    unsigned num_descriptors = 1 +
       COND(info->props.storage_16bit && !info->props.has_isam_v, 1) +
       COND(info->props.storage_8bit, 1);
-   memset(dst, 0, num_descriptors * FDL6_TEX_CONST_DWORDS * sizeof(uint32_t));
+   memset(dst, 0, num_descriptors * tu_get_tex_const_dwords(device) * sizeof(uint32_t));
 
    if (!buffer_info || buffer_info->address == 0)
       return;
@@ -1011,7 +1022,7 @@ write_buffer_descriptor_addr(const struct tu_device *device,
 
    if (info->props.storage_16bit) {
       fdl6_buffer_view_init<CHIP>(dst, PIPE_FORMAT_R16_UINT, tu_swiz(X, Y, Z, W), va, range);
-      dst += FDL6_TEX_CONST_DWORDS;
+      dst += tu_get_tex_const_dwords(device);
    }
 
    /* Set up the 32-bit descriptor when 16-bit storage isn't supported or the
@@ -1019,12 +1030,12 @@ write_buffer_descriptor_addr(const struct tu_device *device,
     */
    if (!info->props.storage_16bit || !info->props.has_isam_v) {
       fdl6_buffer_view_init<CHIP>(dst, PIPE_FORMAT_R32_UINT, tu_swiz(X, Y, Z, W), va, range);
-      dst += FDL6_TEX_CONST_DWORDS;
+      dst += tu_get_tex_const_dwords(device);
    }
 
    if (info->props.storage_8bit) {
       fdl6_buffer_view_init<CHIP>(dst, PIPE_FORMAT_R8_UINT, tu_swiz(X, Y, Z, W), va, range);
-      dst += FDL6_TEX_CONST_DWORDS;
+      dst += tu_get_tex_const_dwords(device);
    }
 }
 
@@ -1288,7 +1299,7 @@ tu_update_descriptor_sets(const struct tu_device *device,
                                                     !binding_layout->immutable_samplers_offset);
 
             if (copy_immutable_samplers)
-               write_sampler_push(ptr + FDL6_TEX_CONST_DWORDS, &samplers[writeset->dstArrayElement + j]);
+               write_sampler_push(ptr + tu_get_tex_const_dwords(device), &samplers[writeset->dstArrayElement + j]);
             break;
          case VK_DESCRIPTOR_TYPE_SAMPLER:
             if (!binding_layout->immutable_samplers_offset)
@@ -1363,15 +1374,15 @@ tu_update_descriptor_sets(const struct tu_device *device,
             if (src_remaining == 0) {
                src_binding_layout++;
                src_ptr = src_set->mapped_ptr + src_binding_layout->offset / 4;
-               src = (uint8_t *)(src_ptr + FDL6_TEX_CONST_DWORDS);
-               src_remaining = src_binding_layout->size - 4 * FDL6_TEX_CONST_DWORDS;
+               src = (uint8_t *)(src_ptr + tu_get_tex_const_dwords(device));
+               src_remaining = src_binding_layout->size - 4 * tu_get_tex_const_dwords(device);
             }
 
             if (dst_remaining == 0) {
                dst_binding_layout++;
                dst_ptr = dst_set->mapped_ptr + dst_binding_layout->offset / 4;
-               dst = (uint8_t *)(dst_ptr + FDL6_TEX_CONST_DWORDS);
-               dst_remaining = dst_binding_layout->size - 4 * FDL6_TEX_CONST_DWORDS;
+               dst = (uint8_t *)(dst_ptr + tu_get_tex_const_dwords(device));
+               dst_remaining = dst_binding_layout->size - 4 * tu_get_tex_const_dwords(device);
             }
          } while (remaining > 0);
 
@@ -1636,7 +1647,7 @@ tu_update_descriptor_set_with_template(
                                                     (const VkDescriptorImageInfo *) src,
                                                     templ->entry[i].has_sampler);
             if (samplers)
-               write_sampler_push(ptr + FDL6_TEX_CONST_DWORDS, &samplers[j]);
+               write_sampler_push(ptr + tu_get_tex_const_dwords(device), &samplers[j]);
             break;
          case VK_DESCRIPTOR_TYPE_SAMPLER:
             if (templ->entry[i].has_sampler)
