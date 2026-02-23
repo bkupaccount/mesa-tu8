@@ -552,19 +552,6 @@ tu_image_update_layout(struct tu_device *device, struct tu_image *image,
       image->ubwc_enabled = false;
    }
 
-   /* Some A8xx emulator stacks still show grid/stitching artifacts with
-    * tiled sampled/storage images even after disabling UBWC and tiled
-    * compressed textures. Keep those sampled/storage images linear on devices
-    * that opt into this conservative path.
-    */
-   if (device->physical_device->info->props.disable_tiled_compressed &&
-       tile_mode == TILE6_3 &&
-       (image->vk.usage & (VK_IMAGE_USAGE_SAMPLED_BIT |
-                           VK_IMAGE_USAGE_STORAGE_BIT))) {
-      tile_mode = TILE6_LINEAR;
-      image->ubwc_enabled = false;
-   }
-
    /* We cannot support sparse residency with linear images, it should've been
     * rejected.
     */
